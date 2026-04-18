@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chuyển ảnh — E-Paper Tag</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .conn-bar { display:flex; align-items:center; gap:12px; }
+        .dot { width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0; }
+        .dot-red   { background:#e04a4a; }
+        .dot-green { background:#4CAF50; }
+        .dot-gray  { background:#aaa; animation:pulse .8s infinite alternate; }
+        @keyframes pulse { to { opacity:.3; } }
+
+        .canvas-wrap {
+            margin:10px 0;
+            border:1px solid var(--border); border-radius:6px; background:#fff;
+            overflow:hidden;
+        }
+        #img-canvas {
+            display:block;
+            width:100%; height:auto;
+            image-rendering:pixelated;
+        }
+
+        .adj-row {
+            display:grid; grid-template-columns:100px 1fr 44px;
+            align-items:center; gap:8px; margin-bottom:10px;
+        }
+        .adj-row label { font-size:13px; color:var(--sub); }
+        .adj-row span  { font-size:12px; text-align:right; color:var(--sub); }
+
+        .dith-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+        .dith-row label { font-size:13px; color:var(--sub); white-space:nowrap; }
+        .dith-row select { padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+        .dith-row input[type=range] { width:90px; }
+        .dith-row span { font-size:12px; color:var(--sub); }
+
+        #img-log { height:160px; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <a class="back-btn" href="../index.html">← Trang chủ</a>
+    <h1>🖼️ Chuyển ảnh</h1>
+</div>
+
+<div class="page-body">
+
+    <!-- ── 1. Connect ─────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Kết nối thiết bị</h2>
+        <div class="conn-bar">
+            <span class="dot dot-red" id="conn-dot"></span>
+            <button class="btn btn-primary" id="connect-btn">Kết nối thiết bị</button>
+            <a class="btn btn-ghost" href="editor.html" style="text-decoration:none;">✏️ Tạo mẫu</a>
+        </div>
+    </div>
+
+    <!-- ── 2. Image source ────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Ảnh nguồn</h2>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
+            <div>
+                <label style="font-size:12px;color:var(--sub);display:block;margin-bottom:4px;">Màn hình</label>
+                <select id="img-screen-size" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+                    <option value="4.2">4.2" — 400×300</option>
+                    <option value="4.2sm">4.2" Lịch — 280×100</option>
+                    <option value="7.5">7.5" — 800×480</option>
+                    <option value="7.5sm">7.5" Lịch — 400×180</option>
+                    <option value="2.9">2.9" — 296×128</option>
+                    <option value="2.13">2.13" — 212×128</option>
+                    <option value="2.13hd">2.13" HD — 250×128</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:12px;color:var(--sub);display:block;margin-bottom:4px;">Kiểu hiển thị</label>
+                <select id="img-fit-mode" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+                    <option value="contain" selected>Vừa màn hình (giữ tỉ lệ)</option>
+                    <option value="fill">Lấp đầy (kéo giãn)</option>
+                    <option value="cover">Phủ kín (cắt viền)</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:12px;color:var(--sub);display:block;margin-bottom:4px;">Chọn ảnh</label>
+                <input type="file" id="img-file-input" accept="image/*" style="font-size:13px;">
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">
+            <button class="btn btn-ghost" id="img-fit-btn">📐 Vừa màn hình</button>
+            <button class="btn btn-ghost" id="img-reset-transform">Đặt lại biến đổi</button>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sub);">
+                Nền:
+                <input type="color" id="img-bg-color" value="#ffffff"
+                       style="width:32px;height:28px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer;">
+            </label>
+        </div>
+        <div class="canvas-wrap">
+            <canvas id="img-canvas" width="400" height="300"></canvas>
+        </div>
+
+        <!-- Transform sliders -->
+        <div class="adj-row" style="margin-top:12px;">
+            <label>Xoay</label>
+            <input type="range" id="img-rotation" min="-180" max="180" value="0" step="1">
+            <span id="img-rotation-val">0°</span>
+        </div>
+        <div class="adj-row">
+            <label>Tỉ lệ</label>
+            <input type="range" id="img-scale" min="10" max="300" value="100" step="1">
+            <span id="img-scale-val">100%</span>
+        </div>
+        <div class="adj-row">
+            <label>Ngưỡng B/W</label>
+            <input type="range" id="img-threshold-quick" min="0" max="255" value="128" step="1">
+            <span id="img-threshold-quick-val">128</span>
+        </div>
+        <p style="font-size:11px;color:var(--sub);margin-top:4px;">
+            Kéo "Xoay"/"Tỉ lệ" để xoay và phóng to ảnh trong canvas. "Ngưỡng B/W" đồng bộ với tab Dithering.
+        </p>
+    </div>
+
+    <!-- ── 3. Adjustments ────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Điều chỉnh ảnh</h2>
+        <div class="adj-row">
+            <label>Sáng/Tối</label>
+            <input type="range" id="img-brightness" min="-100" max="100" value="0">
+            <span id="img-brightness-val">0</span>
+        </div>
+        <div class="adj-row">
+            <label>Tương phản</label>
+            <input type="range" id="img-contrast" min="0" max="300" value="100">
+            <span id="img-contrast-val">100</span>
+        </div>
+        <div class="adj-row">
+            <label>Bão hòa màu</label>
+            <input type="range" id="img-saturation" min="0" max="300" value="100">
+            <span id="img-saturation-val">100</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-ghost" id="img-apply-adj">Áp dụng</button>
+            <button class="btn btn-ghost" id="img-reset-adj">Đặt lại</button>
+        </div>
+    </div>
+
+    <!-- ── 4. Dithering ───────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Dithering</h2>
+        <div class="dith-row">
+            <label>Thuật toán:</label>
+            <select id="img-dithering">
+                <optgroup label="Đen trắng">
+                    <option value="none">Ngưỡng (None)</option>
+                    <option value="floydsteinberg" selected>Floyd-Steinberg</option>
+                    <option value="atkinson">Atkinson</option>
+                    <option value="bayer">Bayer 4×4</option>
+                    <option value="stucki">Stucki</option>
+                    <option value="jarvis">Jarvis</option>
+                </optgroup>
+                <optgroup label="3 màu (đen/trắng/đỏ)">
+                    <option value="bwr_none">BWR None</option>
+                    <option value="bwr_floydsteinberg">BWR Floyd-Steinberg</option>
+                    <option value="bwr_atkinson">BWR Atkinson</option>
+                    <option value="bwr_bayer">BWR Bayer</option>
+                    <option value="bwr_stucki">BWR Stucki</option>
+                    <option value="bwr_jarvis">BWR Jarvis</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="dith-row">
+            <label>Ngưỡng:</label>
+            <input type="range" id="img-threshold" min="0" max="255" value="128">
+            <span id="img-threshold-val">128</span>
+        </div>
+        <div class="dith-row">
+            <label>Khuếch tán:</label>
+            <input type="range" id="img-diffusion" min="0" max="100" value="80">
+            <span id="img-diffusion-val">80</span>
+        </div>
+        <button class="btn btn-ghost" id="img-preview-btn">👁 Xem trước dithering</button>
+    </div>
+
+    <!-- ── 5. Upload ──────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Tải lên thiết bị</h2>
+        <p style="font-size:13px;color:var(--sub);margin-bottom:12px;">
+            Điều chỉnh + dithering được áp dụng trước khi gửi qua BLE.
+        </p>
+        <button class="btn btn-success" id="img-upload-btn">▶ Tải lên thiết bị</button>
+    </div>
+
+    <!-- ── 6. Log ─────────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Log</h2>
+        <pre class="log-box" id="img-log"></pre>
+    </div>
+
+</div>
+
+<script src="../js/ble.js"></script>
+<script src="../js/image.js"></script>
+<script>
+// ── Image page logic ──────────────────────────────────────────────────────────
+
+let _imgSrcImage = null;
+let imgOrigData  = null;
+
+function getImgCanvas() { return document.getElementById('img-canvas'); }
+
+function getScreenSize() {
+    return SCREEN_SIZES[document.getElementById('img-screen-size').value];
+}
+
+/**
+ * Draw `img` into a (bw×bh) canvas: object-fit → apply scale multiplier →
+ * rotate around canvas centre. Arbitrary rotation angles supported.
+ * For `contain` + non-0/90/180/270 angles, auto-shrinks so the rotated
+ * bounding box still fits inside the canvas.
+ */
+function drawFitted(ctx, img, bw, bh, fit, rot, scale, bgColor) {
+    ctx.save();
+    ctx.fillStyle = bgColor || '#ffffff';
+    ctx.fillRect(0, 0, bw, bh);
+
+    const srcW = img.naturalWidth, srcH = img.naturalHeight;
+    if (!srcW || !srcH) { ctx.restore(); return; }
+
+    // 1) Base fit: destination rect when rot=0, scale=1
+    let dw = bw, dh = bh;
+    const rBox = bw / bh, rImg = srcW / srcH;
+    if (fit === 'contain') {
+        if (rImg > rBox) { dw = bw; dh = bw / rImg; }
+        else             { dh = bh; dw = bh * rImg; }
+    } else if (fit === 'cover') {
+        if (rImg > rBox) { dh = bh; dw = bh * rImg; }
+        else             { dw = bw; dh = bw / rImg; }
+    }
+    // 'fill' → dw=bw, dh=bh (stretch)
+
+    // 2) Contain mode: shrink further if rotation would overflow
+    if (fit === 'contain' && rot !== 0) {
+        const a  = rot * Math.PI / 180;
+        const ac = Math.abs(Math.cos(a)), as = Math.abs(Math.sin(a));
+        const boundW = dw * ac + dh * as;
+        const boundH = dw * as + dh * ac;
+        const k = Math.min(bw / boundW, bh / boundH);
+        if (k < 1) { dw *= k; dh *= k; }
+    }
+
+    // 3) User scale multiplier (after auto-fit)
+    dw *= scale; dh *= scale;
+
+    // 4) Draw rotated + centred
+    ctx.translate(bw / 2, bh / 2);
+    ctx.rotate(rot * Math.PI / 180);
+    ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+    ctx.restore();
+}
+
+function loadImageObject(img) {
+    _imgSrcImage = img;
+    const sz  = getScreenSize();
+    const c   = getImgCanvas();
+    c.width   = sz.w;
+    c.height  = sz.h;
+    const ctx = c.getContext('2d');
+    const rot   = parseFloat(document.getElementById('img-rotation').value) || 0;
+    const scale = (parseFloat(document.getElementById('img-scale').value) || 100) / 100;
+    const fit   = document.getElementById('img-fit-mode').value;
+    const bg    = document.getElementById('img-bg-color').value;
+
+    drawFitted(ctx, img, sz.w, sz.h, fit, rot, scale, bg);
+    imgOrigData = ctx.getImageData(0, 0, sz.w, sz.h);
+    addImgLog(`Ảnh: ${img.naturalWidth}×${img.naturalHeight} → ${sz.w}×${sz.h} [${rot.toFixed(0)}°, ${fit}, ${Math.round(scale*100)}%]`);
+}
+
+function buildWorkingCanvas() {
+    const c  = getImgCanvas();
+    const wc = document.createElement('canvas');
+    wc.width = c.width; wc.height = c.height;
+    const ctx = wc.getContext('2d');
+    if (imgOrigData) {
+        ctx.putImageData(imgOrigData, 0, 0);
+    } else {
+        ctx.drawImage(c, 0, 0);
+    }
+    const b  = parseInt(document.getElementById('img-brightness').value) || 0;
+    const co = parseInt(document.getElementById('img-contrast').value)   || 100;
+    const s  = parseInt(document.getElementById('img-saturation').value) || 100;
+    applyAdjustments(wc, { brightness: b, contrast: co, saturation: s });
+    const mode = document.getElementById('img-dithering').value;
+    const thr  = parseInt(document.getElementById('img-threshold').value);
+    const diff = parseInt(document.getElementById('img-diffusion').value) / 100;
+    applyDithering(wc, mode, thr, diff);
+    return wc;
+}
+
+function updateConnectBtn(state) {
+    const btn = document.getElementById('connect-btn');
+    const dot = document.getElementById('conn-dot');
+    if (!btn) return;
+    if (state === 'scanning' || state === 'connecting') {
+        btn.textContent = state === 'scanning' ? 'Đang quét...' : 'Đang kết nối...';
+        btn.disabled = true;
+        if (dot) dot.className = 'dot dot-gray';
+    } else if (state === true) {
+        btn.textContent = 'Ngắt kết nối';
+        btn.disabled = false;
+        if (dot) dot.className = 'dot dot-green';
+        addImgLog('Kết nối thành công.');
+    } else {
+        btn.textContent = 'Kết nối thiết bị';
+        btn.disabled = false;
+        if (dot) dot.className = 'dot dot-red';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    BLE.setLogCallback(addImgLog);
+    BLE.setStateCallback(updateConnectBtn);
+    document.getElementById('connect-btn').addEventListener('click', () => BLE.connect());
+
+    document.getElementById('img-screen-size').addEventListener('change', () => {
+        if (_imgSrcImage) loadImageObject(_imgSrcImage);
+        else {
+            const sz = getScreenSize();
+            const c  = getImgCanvas();
+            c.width  = sz.w; c.height = sz.h;
+        }
+    });
+
+    // Rotation / scale sliders → redraw
+    const rotSlider   = document.getElementById('img-rotation');
+    const rotLabel    = document.getElementById('img-rotation-val');
+    const scaleSlider = document.getElementById('img-scale');
+    const scaleLabel  = document.getElementById('img-scale-val');
+
+    rotSlider.addEventListener('input', () => {
+        rotLabel.textContent = rotSlider.value + '°';
+        if (_imgSrcImage) loadImageObject(_imgSrcImage);
+    });
+    scaleSlider.addEventListener('input', () => {
+        scaleLabel.textContent = scaleSlider.value + '%';
+        if (_imgSrcImage) loadImageObject(_imgSrcImage);
+    });
+
+    // Threshold slider (quick access, synced with dithering threshold)
+    const thrQuick  = document.getElementById('img-threshold-quick');
+    const thrQuickV = document.getElementById('img-threshold-quick-val');
+    const thrMain   = document.getElementById('img-threshold');
+    const thrMainV  = document.getElementById('img-threshold-val');
+    thrQuick.addEventListener('input', () => {
+        thrQuickV.textContent = thrQuick.value;
+        thrMain.value = thrQuick.value;
+        thrMainV.textContent = thrQuick.value;
+    });
+    thrMain.addEventListener('input', () => {
+        thrQuick.value = thrMain.value;
+        thrQuickV.textContent = thrMain.value;
+    });
+
+    document.getElementById('img-fit-mode').addEventListener('change', () => {
+        if (_imgSrcImage) loadImageObject(_imgSrcImage);
+    });
+
+    document.getElementById('img-bg-color').addEventListener('input', () => {
+        if (_imgSrcImage) loadImageObject(_imgSrcImage);
+    });
+
+    document.getElementById('img-fit-btn').addEventListener('click', () => {
+        if (!_imgSrcImage) { addImgLog('Chưa tải ảnh!'); return; }
+        document.getElementById('img-fit-mode').value = 'contain';
+        rotSlider.value = 0;   rotLabel.textContent = '0°';
+        scaleSlider.value = 100; scaleLabel.textContent = '100%';
+        loadImageObject(_imgSrcImage);
+    });
+
+    document.getElementById('img-reset-transform').addEventListener('click', () => {
+        rotSlider.value = 0;   rotLabel.textContent = '0°';
+        scaleSlider.value = 100; scaleLabel.textContent = '100%';
+        if (_imgSrcImage) loadImageObject(_imgSrcImage);
+    });
+
+    document.getElementById('img-file-input').addEventListener('change', e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const img = new Image();
+            img.onload = () => loadImageObject(img);
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(f);
+    });
+
+    [
+        ['img-brightness', 'img-brightness-val'],
+        ['img-contrast',   'img-contrast-val'],
+        ['img-saturation', 'img-saturation-val'],
+        ['img-threshold',  'img-threshold-val'],
+        ['img-diffusion',  'img-diffusion-val'],
+    ].forEach(([sid, vid]) => {
+        document.getElementById(sid)?.addEventListener('input', function () {
+            document.getElementById(vid).textContent = this.value;
+        });
+    });
+
+    document.getElementById('img-apply-adj').addEventListener('click', () => {
+        if (!imgOrigData) { addImgLog('Chưa tải ảnh!'); return; }
+        const c = getImgCanvas();
+        c.getContext('2d').putImageData(imgOrigData, 0, 0);
+        const b  = parseInt(document.getElementById('img-brightness').value) || 0;
+        const co = parseInt(document.getElementById('img-contrast').value)   || 100;
+        const s  = parseInt(document.getElementById('img-saturation').value) || 100;
+        applyAdjustments(c, { brightness: b, contrast: co, saturation: s });
+        addImgLog('Đã áp dụng điều chỉnh.');
+    });
+
+    document.getElementById('img-reset-adj').addEventListener('click', () => {
+        document.getElementById('img-brightness').value = 0;
+        document.getElementById('img-contrast').value   = 100;
+        document.getElementById('img-saturation').value = 100;
+        document.getElementById('img-brightness-val').textContent = '0';
+        document.getElementById('img-contrast-val').textContent   = '100';
+        document.getElementById('img-saturation-val').textContent = '100';
+        if (imgOrigData) {
+            getImgCanvas().getContext('2d').putImageData(imgOrigData, 0, 0);
+            addImgLog('Đã đặt lại.');
+        }
+    });
+
+    document.getElementById('img-preview-btn').addEventListener('click', () => {
+        if (!imgOrigData) { addImgLog('Chưa tải ảnh!'); return; }
+        const wc = buildWorkingCanvas();
+        getImgCanvas().getContext('2d').drawImage(wc, 0, 0);
+        addImgLog('Xem trước dithering xong.');
+    });
+
+    document.getElementById('img-upload-btn').addEventListener('click', async () => {
+        if (!BLE.isConnected()) { addImgLog('Chưa kết nối BLE!'); return; }
+        if (!imgOrigData) { addImgLog('Chưa tải ảnh!'); return; }
+        const btn = document.getElementById('img-upload-btn');
+        btn.disabled = true;
+        try {
+            await uploadCanvas(buildWorkingCanvas());
+        } catch (e) {
+            addImgLog('Lỗi: ' + e.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // Receive image forwarded from editor page
+    const saved = sessionStorage.getItem('editorImage');
+    if (saved) {
+        sessionStorage.removeItem('editorImage');
+        const img = new Image();
+        img.onload = () => { loadImageObject(img); addImgLog('Ảnh nhập từ editor.'); };
+        img.src = saved;
+    }
+
+    updateConnectBtn(false);
+});
+</script>
+</body>
+</html>

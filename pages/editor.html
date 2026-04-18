@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tạo mẫu — E-Paper Tag</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .conn-bar { display:flex; align-items:center; gap:12px; }
+        .dot { width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0; }
+        .dot-red   { background:#e04a4a; }
+        .dot-green { background:#4CAF50; }
+        .dot-gray  { background:#aaa; animation:pulse .8s infinite alternate; }
+        @keyframes pulse { to { opacity:.3; } }
+
+        .canvas-wrap {
+            margin:10px 0;
+            border:1px solid var(--border); border-radius:6px; background:#fff;
+            overflow:hidden;
+        }
+        #canvas_YS {
+            display:block; cursor:crosshair;
+            width:100%; height:auto;
+            image-rendering:pixelated; touch-action:none;
+        }
+
+        /* Color palette */
+        #ed-color-palette { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+        .color-option {
+            width:28px; height:28px; border-radius:50%;
+            border:2px solid transparent; cursor:pointer;
+            transition:transform .1s, border-color .1s;
+        }
+        .color-option.selected { border-color:var(--blue); transform:scale(1.2); }
+
+        /* Icon panel */
+        #ed-icon-templates {
+            display:flex; flex-wrap:wrap; gap:5px;
+            max-height:110px; overflow-y:auto;
+            padding:5px; border:1px solid var(--border); border-radius:6px;
+            background:#fafafa; margin-bottom:8px;
+        }
+        .template-item {
+            width:40px; height:40px;
+            border:2px solid transparent; border-radius:6px;
+            cursor:pointer; background:#fff;
+            display:flex; align-items:center; justify-content:center;
+            position:relative; flex-shrink:0;
+        }
+        .template-item.selected { border-color:var(--blue); }
+        .ed-remove-icon {
+            display:none; position:absolute; top:-5px; right:-5px;
+            width:14px; height:14px;
+            background:var(--red); color:#fff;
+            border-radius:50%; font-size:10px;
+            text-align:center; line-height:14px; cursor:pointer;
+        }
+        .template-item:hover .ed-remove-icon { display:block; }
+
+        /* Control rows */
+        .ctrl-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+        .ctrl-row label { font-size:12px; color:var(--sub); white-space:nowrap; }
+        .ctrl-row select,
+        .ctrl-row input[type=text],
+        .ctrl-row input[type=number] {
+            padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:13px;
+        }
+        .ctrl-row input[type=number] { width:68px; text-align:center; }
+        .ctrl-row input[type=range]  { flex:1; min-width:80px; }
+
+        /* Style toggle buttons */
+        .style-btn {
+            padding:4px 10px; border:1px solid var(--border); border-radius:5px;
+            background:#fff; cursor:pointer; font-size:13px; font-weight:700;
+        }
+        .style-btn.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+
+        /* Move pad */
+        .move-pad {
+            display:grid;
+            grid-template-areas:'. u .' 'l . r' '. d .';
+            grid-template-columns:32px 32px 32px;
+            grid-template-rows:32px 32px 32px;
+            gap:3px;
+        }
+        .move-pad button {
+            padding:0; font-size:14px;
+            border:1px solid var(--border); border-radius:5px;
+            background:#fff; cursor:pointer; line-height:30px;
+        }
+        .move-pad button:hover { background:var(--gray); }
+        #ed-move-up    { grid-area:u; }
+        #ed-move-left  { grid-area:l; }
+        #ed-move-right { grid-area:r; }
+        #ed-move-down  { grid-area:d; }
+
+        /* Section sub-label */
+        .section-sub {
+            font-size:11px; font-weight:700; color:var(--sub);
+            letter-spacing:.05em; text-transform:uppercase;
+            margin:14px 0 8px; padding-bottom:4px;
+            border-bottom:1px solid var(--border);
+        }
+
+        #img-log { height:150px; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <a class="back-btn" href="image.html">← Chuyển ảnh</a>
+    <h1>✏️ Tạo mẫu thiết kế</h1>
+</div>
+
+<div class="page-body">
+
+    <!-- ── BLE ───────────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Kết nối thiết bị</h2>
+        <div class="conn-bar">
+            <span class="dot dot-red" id="conn-dot"></span>
+            <button class="btn btn-primary" id="connect-btn">Kết nối thiết bị</button>
+        </div>
+    </div>
+
+    <!-- ── Canvas ────────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Canvas</h2>
+        <div class="ctrl-row">
+            <label>Kích thước:</label>
+            <select id="ed-screen-size">
+                <option value="4.2" selected>4.2" (400×300)</option>
+                <option value="4.2sm">4.2" Lịch (280×100)</option>
+                <option value="7.5">7.5" (800×480)</option>
+                <option value="7.5sm">7.5" Lịch (400×180)</option>
+                <option value="2.9">2.9" (296×128)</option>
+                <option value="2.13">2.13" (212×128)</option>
+                <option value="2.13hd">2.13" HD (250×128)</option>
+            </select>
+            <button class="btn btn-ghost" id="ed-clear-canvas">🗑 Xóa tất cả</button>
+        </div>
+        <div class="canvas-wrap">
+            <canvas id="canvas_YS" width="400" height="300"></canvas>
+        </div>
+        <div class="ctrl-row" style="margin-top:8px;">
+            <button class="btn btn-ghost" id="ed-save-canvas">💾 Lưu PNG</button>
+            <button class="btn btn-ghost" id="ed-apply-to-image">→ Trang ảnh</button>
+            <button class="btn btn-success" id="ed-send-btn">▶ Gửi lên thiết bị</button>
+        </div>
+        <div class="section-sub">Dithering khi gửi</div>
+        <div class="ctrl-row">
+            <label>Mode:</label>
+            <select id="ed-dithering" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+                <option value="floydsteinberg" selected>Floyd-Steinberg</option>
+                <option value="bwr_floydsteinberg">BWR Floyd-Steinberg</option>
+                <option value="none">None</option>
+                <option value="atkinson">Atkinson</option>
+                <option value="bayer">Bayer</option>
+                <option value="bwr_bayer">BWR Bayer</option>
+            </select>
+            <label>Ngưỡng:</label>
+            <input type="range" id="ed-threshold" min="0" max="255" value="128" style="width:80px;">
+            <span id="ed-threshold-val" style="font-size:12px;color:var(--sub);min-width:24px;">128</span>
+            <label>Khuếch tán:</label>
+            <input type="range" id="ed-diffusion" min="0" max="100" value="80" style="width:70px;">
+            <span id="ed-diffusion-val" style="font-size:12px;color:var(--sub);min-width:24px;">80</span>
+        </div>
+    </div>
+
+    <!-- ── Add elements ───────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Thêm phần tử</h2>
+        <div class="ctrl-row">
+            <label>Loại:</label>
+            <select id="ed-element-type">
+                <option value="rect">Hình chữ nhật</option>
+                <option value="circle">Hình tròn</option>
+                <option value="triangle">Tam giác</option>
+                <option value="line">Đường thẳng</option>
+                <option value="star">Ngôi sao</option>
+                <option value="text">Văn bản</option>
+                <option value="image">Icon / Ảnh</option>
+            </select>
+            <button class="btn btn-primary" id="ed-add-element">➕ Thêm</button>
+        </div>
+
+        <!-- Star params (shown when star selected) -->
+        <div id="ed-star-params" class="ctrl-row" style="display:none;">
+            <label>Số cánh:</label>
+            <input type="number" id="ed-param1" value="5" min="3" max="20">
+            <label>Tỉ lệ:</label>
+            <input type="number" id="ed-param2" value="0.5" min="0.1" max="0.9" step="0.1">
+        </div>
+
+        <!-- Text controls (shown when text selected) -->
+        <div id="ed-text-controls" style="display:none;">
+            <div class="ctrl-row">
+                <label>Nội dung:</label>
+                <input type="text" id="ed-text-content" value="Text"
+                       style="flex:1;min-width:120px;max-width:300px;">
+            </div>
+            <div class="ctrl-row">
+                <label>Font:</label>
+                <select id="ed-text-font" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+                    <option>Arial</option>
+                    <option>Georgia</option>
+                    <option>Courier New</option>
+                    <option>Times New Roman</option>
+                    <option>Verdana</option>
+                </select>
+                <label>Cỡ:</label>
+                <input type="number" id="ed-text-size" value="16" min="6" max="200">
+                <button class="style-btn" id="ed-text-bold" title="Bold">B</button>
+                <button class="style-btn" id="ed-text-italic" style="font-style:italic;" title="Italic">I</button>
+                <button class="style-btn" id="ed-text-underline" style="text-decoration:underline;" title="Underline">U</button>
+            </div>
+            <button class="btn btn-ghost" id="ed-update-text" style="margin-bottom:6px;">Cập nhật văn bản</button>
+        </div>
+    </div>
+
+    <!-- ── Selected element ───────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Phần tử đang chọn</h2>
+
+        <div class="section-sub">Màu sắc</div>
+        <div id="ed-color-palette">
+            <div class="color-option selected" data-color="#000000" style="background:#000000;" title="Đen"></div>
+            <div class="color-option" data-color="#ffffff" style="background:#ffffff;box-shadow:inset 0 0 0 1px #ccc;" title="Trắng"></div>
+            <div class="color-option" data-color="#ff0000" style="background:#ff0000;" title="Đỏ"></div>
+            <div class="color-option" data-color="#333333" style="background:#333333;" title="Xám đậm"></div>
+            <div class="color-option" data-color="#888888" style="background:#888888;" title="Xám"></div>
+            <div class="color-option" data-color="#4a6ee0" style="background:#4a6ee0;" title="Xanh dương"></div>
+            <div class="color-option" data-color="#4CAF50" style="background:#4CAF50;" title="Xanh lá"></div>
+        </div>
+
+        <div class="section-sub">Kích thước & Xoay</div>
+        <div class="ctrl-row">
+            <label>Rộng:</label>
+            <input type="number" id="ed-width" value="60" min="1">
+            <label>Cao:</label>
+            <input type="number" id="ed-height" value="40" min="1">
+            <button class="btn btn-ghost" id="ed-apply-size">Áp dụng</button>
+        </div>
+        <div class="ctrl-row">
+            <label>Xoay:</label>
+            <input type="range" id="ed-rotation" min="-180" max="180" value="0">
+            <span id="ed-rotation-value" style="min-width:36px;font-size:12px;color:var(--sub);">0°</span>
+        </div>
+
+        <div class="section-sub">Di chuyển & Sắp xếp</div>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+            <div class="move-pad">
+                <button id="ed-move-up">↑</button>
+                <button id="ed-move-left">←</button>
+                <button id="ed-move-right">→</button>
+                <button id="ed-move-down">↓</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+                <button class="btn btn-ghost" id="ed-bring-to-front">⬆ Lên trên cùng</button>
+                <button class="btn btn-ghost" id="ed-send-to-back">⬇ Xuống dưới cùng</button>
+                <button class="btn btn-ghost" id="ed-duplicate-element">⧉ Nhân bản</button>
+                <button class="btn btn-danger" id="ed-delete-element">🗑 Xóa phần tử</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Background ─────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Nền</h2>
+        <div class="ctrl-row">
+            <label>Màu nền:</label>
+            <input type="color" id="ed-bg-color" value="#ffffff"
+                   style="width:40px;height:32px;padding:2px;border:1px solid var(--border);border-radius:6px;cursor:pointer;">
+            <button class="btn btn-ghost" id="ed-apply-bg-color">Áp dụng màu nền</button>
+        </div>
+        <div class="ctrl-row">
+            <label>Ảnh nền:</label>
+            <input type="file" id="ed-bg-upload" accept="image/*" style="font-size:13px;">
+        </div>
+    </div>
+
+    <!-- ── Icons / QR ─────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Icons / QR Code</h2>
+        <p style="font-size:12px;color:var(--sub);margin-bottom:8px;">
+            Chọn icon bên dưới → chọn loại "Icon/Ảnh" → nhấn Thêm.
+        </p>
+        <div id="ed-icon-templates"></div>
+        <div class="ctrl-row">
+            <label>Tải icon lên:</label>
+            <input type="file" id="ed-icon-upload" accept="image/*" multiple style="font-size:13px;">
+        </div>
+        <div class="section-sub">QR Code</div>
+        <div class="ctrl-row">
+            <label>Nội dung:</label>
+            <input type="text" id="ed-qrcode-content" placeholder="https://example.com"
+                   style="flex:1;min-width:150px;max-width:320px;">
+            <button class="btn btn-ghost" id="ed-generate-qrcode">Tạo QR</button>
+        </div>
+    </div>
+
+    <!-- ── Log ────────────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Log</h2>
+        <pre class="log-box" id="img-log"></pre>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="../js/ble.js"></script>
+<script src="../js/image.js"></script>
+<script src="../js/editor.js"></script>
+<script>
+// ── BLE + page-level init for editor ─────────────────────────────────────────
+
+function updateConnectBtn(state) {
+    const btn = document.getElementById('connect-btn');
+    const dot = document.getElementById('conn-dot');
+    if (!btn) return;
+    if (state === 'scanning' || state === 'connecting') {
+        btn.textContent = state === 'scanning' ? 'Đang quét...' : 'Đang kết nối...';
+        btn.disabled = true;
+        if (dot) dot.className = 'dot dot-gray';
+    } else if (state === true) {
+        btn.textContent = 'Ngắt kết nối';
+        btn.disabled = false;
+        if (dot) dot.className = 'dot dot-green';
+        addImgLog('Kết nối thành công.');
+    } else {
+        btn.textContent = 'Kết nối thiết bị';
+        btn.disabled = false;
+        if (dot) dot.className = 'dot dot-red';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    BLE.setLogCallback(addImgLog);
+    BLE.setStateCallback(updateConnectBtn);
+    document.getElementById('connect-btn').addEventListener('click', () => BLE.connect());
+
+    // Resize canvas when screen size changes (clears content)
+    document.getElementById('ed-screen-size').addEventListener('change', function () {
+        const sz = SCREEN_SIZES[this.value];
+        if (!sz || !edCanvas) return;
+        if (!confirm(`Thay đổi canvas thành ${sz.w}×${sz.h}? Nội dung sẽ bị xóa.`)) {
+            // Revert selection to match current canvas size
+            const cur = Object.keys(SCREEN_SIZES).find(k =>
+                SCREEN_SIZES[k].w === edCanvas.width && SCREEN_SIZES[k].h === edCanvas.height
+            );
+            if (cur) this.value = cur;
+            return;
+        }
+        edCanvas.width  = sz.w;
+        edCanvas.height = sz.h;
+        edState.elements = [];
+        edState.selectedElementIndex = -1;
+        renderElements();
+        addImgLog(`Canvas: ${sz.w}×${sz.h}`);
+    });
+
+    // Show/hide element-type-specific controls
+    document.getElementById('ed-element-type').addEventListener('change', function () {
+        document.getElementById('ed-star-params').style.display   = this.value === 'star'  ? 'flex'  : 'none';
+        document.getElementById('ed-text-controls').style.display = this.value === 'text'  ? 'block' : 'none';
+    });
+
+    // Dithering slider labels
+    document.getElementById('ed-threshold').addEventListener('input', function () {
+        document.getElementById('ed-threshold-val').textContent = this.value;
+    });
+    document.getElementById('ed-diffusion').addEventListener('input', function () {
+        document.getElementById('ed-diffusion-val').textContent = this.value;
+    });
+
+    updateConnectBtn(false);
+});
+</script>
+</body>
+</html>

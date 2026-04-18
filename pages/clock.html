@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lịch / Đồng hồ — E-Paper Tag</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .conn-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .dot-red   { background: #e04a4a; }
+        .dot-green { background: #4CAF50; }
+        .dot-gray  { background: #aaa; animation: pulse .8s infinite alternate; }
+        @keyframes pulse { to { opacity: .3; } }
+
+        /* Clock preview box */
+        .clock-preview {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 8px;
+            padding: 14px 18px;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .preview-label {
+            font-size: 11px;
+            color: var(--sub);
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        /* Offset row */
+        .offset-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .offset-row label { font-size: 13px; color: var(--sub); white-space: nowrap; }
+        .offset-row input {
+            width: 64px;
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+        }
+        .offset-row input:focus { outline: 2px solid var(--blue); border-color: transparent; }
+
+        /* Button group */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Log */
+        #log-output { height: 160px; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <a class="back-btn" href="../index.html">← Trang chủ</a>
+    <h1>🕐 Lịch / Đồng hồ</h1>
+</div>
+
+<div class="page-body">
+
+    <!-- ── 1. Kết nối ─────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Kết nối thiết bị</h2>
+        <div class="conn-bar">
+            <span class="dot dot-red" id="conn-dot"></span>
+            <button class="btn btn-primary" id="connect-btn">Kết nối thiết bị</button>
+        </div>
+    </div>
+
+    <!-- ── 2. Đồng bộ thời gian ───────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Đồng bộ thời gian</h2>
+
+        <div class="clock-preview" id="clock-preview">--:--:--</div>
+        <p class="preview-label">Thời gian sẽ gửi lên thiết bị (cập nhật mỗi giây)</p>
+
+        <div class="offset-row">
+            <label>Điều chỉnh múi giờ (giờ):</label>
+            <input type="number" id="hour-offset" value="0" min="-12" max="14">
+            <span style="font-size:12px;color:var(--sub);">0 = giờ máy tính hiện tại</span>
+        </div>
+
+        <button class="btn btn-success" id="sync-btn">🔄 Đồng bộ thời gian</button>
+    </div>
+
+    <!-- ── 3. Chế độ hiển thị ─────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Chế độ hiển thị</h2>
+        <div class="btn-group">
+            <button class="btn btn-primary" id="mode-calendar-btn">📅 Chuyển sang Lịch</button>
+            <button class="btn btn-primary" id="mode-clock-btn">🕐 Chuyển sang Đồng hồ</button>
+        </div>
+        <p style="font-size:12px;color:var(--sub);margin-top:10px;">
+            Lệnh gửi: <code>E1 01</code> / <code>E1 02</code>, sau đó tự động làm mới màn hình.
+        </p>
+    </div>
+
+    <!-- ── 4. Làm mới ────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Màn hình</h2>
+        <button class="btn btn-ghost" id="refresh-btn">⟳ Làm mới màn hình</button>
+    </div>
+
+    <!-- ── 5. Log ─────────────────────────────────────────────────────────── -->
+    <div class="section">
+        <h2>Log</h2>
+        <pre class="log-box" id="log-output"></pre>
+    </div>
+
+</div>
+
+<script src="../js/ble.js"></script>
+<script src="../js/clock.js"></script>
+</body>
+</html>

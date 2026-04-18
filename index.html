@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>E-Paper Tag — Cài đặt</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body { display: flex; flex-direction: column; }
+        .topbar h1 { font-size: 18px; }
+        .page-body { padding-top: 32px; }
+        .site-desc {
+            font-size: 13px;
+            color: var(--sub);
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h1>⚡ E-Paper Tag</h1>
+</div>
+
+<div class="page-body">
+    <p class="site-desc">Chọn tính năng bạn muốn cài đặt:</p>
+
+    <div class="card-grid">
+        <a class="nav-card" href="pages/clock.html">
+            <span class="icon">🕐</span>
+            <span class="label">Lịch / Đồng hồ</span>
+            <span class="desc">Cài đặt múi giờ, định dạng ngày giờ, màn hình đếm ngược</span>
+        </a>
+
+        <a class="nav-card" href="pages/dashboard.html">
+            <span class="icon">📊</span>
+            <span class="label">Dashboard</span>
+            <span class="desc">Hiển thị Claude Code usage, cost, token lên e-paper</span>
+        </a>
+
+        <a class="nav-card" href="pages/image.html">
+            <span class="icon">🖼️</span>
+            <span class="label">Chuyển ảnh</span>
+            <span class="desc">Tải ảnh lên thiết bị qua BLE</span>
+        </a>
+    </div>
+</div>
+
+</body>
+</html>
