@@ -73,7 +73,7 @@ Script gọi lần lượt:
 > Trang web chỉ cập nhật khi bấm nút. Nếu muốn **tự động làm mới màn hình định kỳ** (ví dụ mỗi vài phút), bạn có thể tự viết một script Python riêng: gọi `GET http://localhost:4318/api/dashboard` để lấy số liệu, đóng gói theo cấu trúc payload 139 byte trong [js/dashboard.js](js/dashboard.js) (`buildPayload`), rồi ghi lần lượt `0x06 + payload`, `E1 03`, `E2` xuống characteristic BLE của thẻ (xem UUID trong [js/ble.js](js/ble.js)).
 
 Các trang khác hoạt động độc lập, không cần server:
-- [pages/clock.html](pages/clock.html) — cài đặt lịch / đồng hồ / đếm ngược.
+- [pages/clock.html](pages/clock.html) — cài đặt lịch / đồng hồ.
 - [pages/image.html](pages/image.html) — đẩy ảnh tùy ý lên thẻ.
 - [pages/editor.html](pages/editor.html) — soạn nội dung hiển thị.
 
