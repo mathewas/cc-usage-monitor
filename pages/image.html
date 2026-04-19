@@ -37,6 +37,18 @@
         .dith-row input[type=range] { width:90px; }
         .dith-row span { font-size:12px; color:var(--sub); }
 
+        .position-controls {
+            display:flex; gap:6px; justify-content:center; margin:4px 0;
+        }
+        .position-controls button {
+            min-width:64px; padding:6px 10px;
+        }
+        .pos-step {
+            display:flex; align-items:center; gap:8px; justify-content:center;
+            font-size:12px; color:var(--sub); margin-top:6px;
+        }
+        .pos-step input { width:60px; padding:3px 6px; border:1px solid var(--border); border-radius:4px; font-size:12px; }
+
         #img-log { height:160px; }
     </style>
 </head>
@@ -117,8 +129,25 @@
             <input type="range" id="img-threshold-quick" min="0" max="255" value="128" step="1">
             <span id="img-threshold-quick-val">128</span>
         </div>
-        <p style="font-size:11px;color:var(--sub);margin-top:4px;">
-            Kéo "Xoay"/"Tỉ lệ" để xoay và phóng to ảnh trong canvas. "Ngưỡng B/W" đồng bộ với tab Dithering.
+
+        <!-- Vị trí ảnh -->
+        <div class="position-controls">
+            <button class="btn btn-ghost" id="img-move-up">↑ Lên</button>
+        </div>
+        <div class="position-controls">
+            <button class="btn btn-ghost" id="img-move-left">← Trái</button>
+            <button class="btn btn-ghost" id="img-move-center">◎ Giữa</button>
+            <button class="btn btn-ghost" id="img-move-down">↓ Xuống</button>
+            <button class="btn btn-ghost" id="img-move-right">→ Phải</button>
+        </div>
+        <div class="pos-step">
+            <label for="img-move-step">Bước (px):</label>
+            <input type="number" id="img-move-step" min="1" max="200" value="5" step="1">
+            <span id="img-offset-val">X: 0, Y: 0</span>
+        </div>
+
+        <p style="font-size:11px;color:var(--sub);margin-top:6px;">
+            Kéo "Xoay"/"Tỉ lệ" để xoay và phóng to ảnh trong canvas. Dùng ↑ ← ↓ → để dịch ảnh. "Ngưỡng B/W" đồng bộ với tab Dithering.
         </p>
     </div>
 
@@ -207,6 +236,8 @@
 
 let _imgSrcImage = null;
 let imgOrigData  = null;
+let imgOffsetX   = 0;
+let imgOffsetY   = 0;
 
 function getImgCanvas() { return document.getElementById('img-canvas'); }
 
@@ -220,10 +251,12 @@ function getScreenSize() {
  * For `contain` + non-0/90/180/270 angles, auto-shrinks so the rotated
  * bounding box still fits inside the canvas.
  */
-function drawFitted(ctx, img, bw, bh, fit, rot, scale, bgColor) {
+function drawFitted(ctx, img, bw, bh, fit, rot, scale, bgColor, offX, offY) {
     ctx.save();
     ctx.fillStyle = bgColor || '#ffffff';
     ctx.fillRect(0, 0, bw, bh);
+    offX = offX || 0;
+    offY = offY || 0;
 
     const srcW = img.naturalWidth, srcH = img.naturalHeight;
     if (!srcW || !srcH) { ctx.restore(); return; }
@@ -253,8 +286,8 @@ function drawFitted(ctx, img, bw, bh, fit, rot, scale, bgColor) {
     // 3) User scale multiplier (after auto-fit)
     dw *= scale; dh *= scale;
 
-    // 4) Draw rotated + centred
-    ctx.translate(bw / 2, bh / 2);
+    // 4) Draw rotated + centred + user offset
+    ctx.translate(bw / 2 + offX, bh / 2 + offY);
     ctx.rotate(rot * Math.PI / 180);
     ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
     ctx.restore();
@@ -272,9 +305,23 @@ function loadImageObject(img) {
     const fit   = document.getElementById('img-fit-mode').value;
     const bg    = document.getElementById('img-bg-color').value;
 
-    drawFitted(ctx, img, sz.w, sz.h, fit, rot, scale, bg);
+    drawFitted(ctx, img, sz.w, sz.h, fit, rot, scale, bg, imgOffsetX, imgOffsetY);
     imgOrigData = ctx.getImageData(0, 0, sz.w, sz.h);
-    addImgLog(`Ảnh: ${img.naturalWidth}×${img.naturalHeight} → ${sz.w}×${sz.h} [${rot.toFixed(0)}°, ${fit}, ${Math.round(scale*100)}%]`);
+    addImgLog(`Ảnh: ${img.naturalWidth}×${img.naturalHeight} → ${sz.w}×${sz.h} [${rot.toFixed(0)}°, ${fit}, ${Math.round(scale*100)}%, X:${imgOffsetX}, Y:${imgOffsetY}]`);
+}
+
+function updateOffsetLabel() {
+    const el = document.getElementById('img-offset-val');
+    if (el) el.textContent = `X: ${imgOffsetX}, Y: ${imgOffsetY}`;
+}
+
+function nudgeOffset(dx, dy) {
+    const c = getImgCanvas();
+    const maxX = c.width, maxY = c.height;
+    imgOffsetX = Math.max(-maxX, Math.min(maxX, imgOffsetX + dx));
+    imgOffsetY = Math.max(-maxY, Math.min(maxY, imgOffsetY + dy));
+    updateOffsetLabel();
+    if (_imgSrcImage) loadImageObject(_imgSrcImage);
 }
 
 function buildWorkingCanvas() {
@@ -375,12 +422,26 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('img-fit-mode').value = 'contain';
         rotSlider.value = 0;   rotLabel.textContent = '0°';
         scaleSlider.value = 100; scaleLabel.textContent = '100%';
+        imgOffsetX = 0; imgOffsetY = 0; updateOffsetLabel();
         loadImageObject(_imgSrcImage);
     });
 
     document.getElementById('img-reset-transform').addEventListener('click', () => {
         rotSlider.value = 0;   rotLabel.textContent = '0°';
         scaleSlider.value = 100; scaleLabel.textContent = '100%';
+        imgOffsetX = 0; imgOffsetY = 0; updateOffsetLabel();
+        if (_imgSrcImage) loadImageObject(_imgSrcImage);
+    });
+
+    // Position nudge buttons
+    const stepInput = document.getElementById('img-move-step');
+    const getStep = () => Math.max(1, parseInt(stepInput.value) || 5);
+    document.getElementById('img-move-up')   .addEventListener('click', () => nudgeOffset(0, -getStep()));
+    document.getElementById('img-move-down') .addEventListener('click', () => nudgeOffset(0,  getStep()));
+    document.getElementById('img-move-left') .addEventListener('click', () => nudgeOffset(-getStep(), 0));
+    document.getElementById('img-move-right').addEventListener('click', () => nudgeOffset( getStep(), 0));
+    document.getElementById('img-move-center').addEventListener('click', () => {
+        imgOffsetX = 0; imgOffsetY = 0; updateOffsetLabel();
         if (_imgSrcImage) loadImageObject(_imgSrcImage);
     });
 
