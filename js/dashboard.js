@@ -351,6 +351,51 @@ async function fetchFromServer() {
     if (!s.requests) addLog('(Chưa có OTel request nào hôm nay.)');
 }
 
+// ── Auto sync ────────────────────────────────────────────────────────────────
+
+let autoSyncTimer = null;
+
+async function runAutoSync() {
+    if (!BLE.isConnected()) {
+        addLog('Auto sync: mất kết nối BLE, dừng lại.');
+        stopAutoSync();
+        return;
+    }
+    try {
+        await fetchFromServer();
+        await sendNativeDashboard(readForm());
+    } catch (e) {
+        addLog('Auto sync lỗi: ' + e.message);
+    }
+}
+
+function startAutoSync() {
+    if (!BLE.isConnected()) { addLog('Chưa kết nối BLE!'); return; }
+    const intervalSec = parseInt(document.getElementById('sync-interval')?.value || 60);
+    if (isNaN(intervalSec) || intervalSec < 5) {
+        addLog('Thời gian cập nhật tối thiểu 5 giây.');
+        return;
+    }
+    const btn = document.getElementById('auto-sync-btn');
+    const input = document.getElementById('sync-interval');
+    btn.textContent = '⏹ Stop';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-ghost');
+    input.disabled = true;
+    addLog(`Auto sync bắt đầu — mỗi ${intervalSec}s`);
+    runAutoSync();
+    autoSyncTimer = setInterval(runAutoSync, intervalSec * 1000);
+}
+
+function stopAutoSync() {
+    if (autoSyncTimer) { clearInterval(autoSyncTimer); autoSyncTimer = null; }
+    const btn = document.getElementById('auto-sync-btn');
+    const input = document.getElementById('sync-interval');
+    if (btn) { btn.textContent = '▶ Start'; btn.classList.remove('btn-ghost'); btn.classList.add('btn-primary'); }
+    if (input) input.disabled = false;
+    addLog('Auto sync đã dừng.');
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -394,6 +439,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             btn.disabled = false;
         }
+    });
+
+    document.getElementById('auto-sync-btn')?.addEventListener('click', () => {
+        if (autoSyncTimer) stopAutoSync(); else startAutoSync();
     });
 
     syncSlider('sl-pct5h', 'f-pct5h');
